@@ -57,7 +57,11 @@ def train(epoch,batch_size):
                 inputs=batch_data["input"].T.to(device)
             output = model(inputs)
             # 计算损失
-            loss = criterion(output.view(-1, ntokens), batch_data["target"].to(device))
+            label=torch.zeros(inputs.size(1),nclass)
+            row_idx=torch.arange(inputs.size(1))
+            label[row_idx,batch_data["target"]]=1
+            #loss = criterion(output.view(-1, nclass), label.to(device))
+            loss = criterion(output.transpose(0,1), label.to(device).long())
             # 计算梯度
             loss.backward()
             # 梯度裁剪，防止梯度消失/爆炸
