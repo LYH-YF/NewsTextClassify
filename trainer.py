@@ -23,12 +23,13 @@ def train(epoch,batch_size):
     nhid = 200 # nn.TransformerEncoder 中前馈神经网络的维度
     nlayers = 2 # 编码器中 nn.TransformerEncoderLayer 层数
     nhead = 2 # 多头注意力机制中“头”的数目
+    max_len=1024
     nclass=14
     dropout = 0.2 # dropout
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #实例化模型
-    model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers, nclass,dropout).to(device)
+    model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers, nclass,max_len,dropout).to(device)
     criterion = nn.CrossEntropyLoss()
     # 学习率
     lr = 2.0
@@ -50,9 +51,13 @@ def train(epoch,batch_size):
             start_time = time.time() # 用于记录模型的训练时长
             # 获取批次数据
             optimizer.zero_grad()
-            output = model(batch_data["input"])
+            if batch_data["input"].size(1)>max_len:
+                inputs=batch_data["input"][:,:max_len].T.to(device)
+            else:
+                inputs=batch_data["input"].T.to(device)
+            output = model(inputs)
             # 计算损失
-            loss = criterion(output.view(-1, ntokens), batch_data["target"])
+            loss = criterion(output.view(-1, ntokens), batch_data["target"].to(device))
             # 计算梯度
             loss.backward()
             # 梯度裁剪，防止梯度消失/爆炸
@@ -89,8 +94,6 @@ def train(epoch,batch_size):
             best_val_loss = val_loss
             best_model = model
             # 保存模型
-            if not os.path.exists('models'):
-                os.makedirs('models')
             torch.save({'state_dict': best_model.state_dict()}, 'models/best_model.pth.tar')
 if __name__ == "__main__":
-    train(10,128)
+    train(10,64)

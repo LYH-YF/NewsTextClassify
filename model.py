@@ -8,7 +8,7 @@ class PositionalEncoding(nn.Module):
     '''
     给原始序列添加位置编码
     '''
-    def __init__(self, d_model, dropout=0.1, max_len=100):
+    def __init__(self, d_model, dropout=0.1, max_len=1024):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
         
@@ -33,7 +33,7 @@ def subsequent_mask(sz):
     return mask
 
 class TransformerModel(nn.Module):
-    def __init__(self, ntoken, ninp, nhead, nhid, nlayers,nclass, dropout=0.5):
+    def __init__(self, ntoken, ninp, nhead, nhid, nlayers,nclass,max_len, dropout=0.5):
         super(TransformerModel, self).__init__()
         '''
         ntoken: 词表大小，用于构建嵌入层
@@ -44,7 +44,7 @@ class TransformerModel(nn.Module):
         '''
         self.model_type = 'Transformer'
         self.src_mask = None
-        self.pos_encoder = PositionalEncoding(ninp, dropout) # 位置编码
+        self.pos_encoder = PositionalEncoding(ninp, dropout,max_len) # 位置编码
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout) # EncoderLayer
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers) # Encoder
         self.encoder = nn.Embedding(ntoken, ninp) # 嵌入层
@@ -58,6 +58,7 @@ class TransformerModel(nn.Module):
         if self.src_mask is None or self.src_mask.size(0) != len(src):
             device = src.device
             mask = subsequent_mask(len(src)).to(device)
+            #mask=subsequent_mask(src.size(1)).to(device)
             self.src_mask = mask
 
         src = self.encoder(src) * math.sqrt(self.ninp)

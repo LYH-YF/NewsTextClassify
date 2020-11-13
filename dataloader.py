@@ -6,7 +6,7 @@ def load_json_data(path):
     f.close()
     return data    
 def build_batch(id_list,type,pad_token):
-    path="data/processed_"+type+"set_"
+    path="data/processed/"+type+"set_"
     text_input=[]
     text_inputlen=[]
     target=[]
@@ -15,7 +15,7 @@ def build_batch(id_list,type,pad_token):
         data=load_json_data(text_path)
         text_input.append(data["text"])
         text_inputlen.append(len(data["text"]))
-        target.append(data["label"])
+        target.append(int(data["label"]))
     max_len=max(text_inputlen)
     for i in range(len(id_list)):
         text_input[i]=text_input[i]+[pad_token]*(max_len-text_inputlen[i])
@@ -38,4 +38,11 @@ def load_batch_data(batchsize,id_list,type,pad_token):
         yield {"input":text_input,"target":target}
 
 if __name__ == "__main__":
-    pass
+    text_len=[]
+    train_id_list=load_json_data("data/train_id.json")
+    x=0
+    for data in load_batch_data(64,train_id_list,"train",7551):
+        text_len.append(data["input"].size(1))
+        x+=1
+        print("\r%d"%x,end="")
+    print(max(text_len))
