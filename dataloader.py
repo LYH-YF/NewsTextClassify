@@ -26,7 +26,7 @@ def load_batch_data(batchsize,id_list,type,pad_token):
     for batch_i in range(batch_num):
         idx_min=batch_i*batchsize
         if (batch_i+1)*batchsize>=text_num:
-            idx_max=text_num-1
+            idx_max=text_num
         else:
             idx_max=(batch_i+1)*batchsize
         if idx_min==idx_max or idx_min>=text_num:
@@ -39,10 +39,9 @@ def load_batch_data(batchsize,id_list,type,pad_token):
 
 if __name__ == "__main__":
     text_len=[]
-    train_id_list=load_json_data("data/train_id.json")
+    test_id_list=load_json_data("data/test_id.json")
     x=0
-    for data in load_batch_data(64,train_id_list,"train",7551):
-        text_len.append(data["input"].size(1))
-        x+=1
-        print("\r%d"%x,end="")
-    print(max(text_len))
+    for data in load_batch_data(64,test_id_list,"test",7551):
+        #text_len.append(data["input"].size(0))
+        x+=data["input"].size(0)
+    print(x)

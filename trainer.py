@@ -11,11 +11,24 @@ def evaluate(eval_model, batch_size):
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.
     ntokens = 7551 # 词表大小
+    max_len=1024
+    nclass=14
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     with torch.no_grad():
         for batch_data in load_batch_data(batch_size,valid_id_list,"train",7550):
-            output = eval_model(batch_data["input"])
-            output_flat = output.view(-1, ntokens)
-            total_loss += batch_size * criterion(output_flat, batch_data["target"]).item()
+            if batch_data["input"].size(1)>max_len:
+                inputs=batch_data["input"][:,:max_len].T.to(device)
+            else:
+                inputs=batch_data["input"].T.to(device)
+            output = eval_model(inputs)
+            # 计算损失
+            label=torch.zeros(inputs.size(1),nclass)
+            row_idx=torch.arange(inputs.size(1))
+            label[row_idx,batch_data["target"]]=1
+            #loss = criterion(output.view(-1, ntokens), batch_data["target"].to(device))
+            loss = criterion(output.transpose(0,1), label.to(device).long())
+            total_loss += batch_size * loss.item()
     return total_loss / (len(valid_id_list) - 1)
 def train(epoch,batch_size):
     ntokens = 7551 # 词表大小
@@ -88,7 +101,7 @@ def train(epoch,batch_size):
         # 打印验证结果
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-            'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+            'valid ppl {:8.2f}'.format(epo, (time.time() - epoch_start_time),
                                         val_loss, math.exp(val_loss)))
         print('-' * 89)
         # 调整学习率
