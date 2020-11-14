@@ -38,10 +38,30 @@ def load_batch_data(batchsize,id_list,type,pad_token):
         yield {"input":text_input,"target":target}
 
 if __name__ == "__main__":
-    text_len=[]
     test_id_list=load_json_data("data/test_id.json")
+    valid_id_list=load_json_data("data/valid_id.json")
+    train_id_list=load_json_data("data/test_id.json")
+    max_index=[]
+    min_index=[]
     x=0
-    for data in load_batch_data(64,test_id_list,"test",7551):
-        #text_len.append(data["input"].size(0))
-        x+=data["input"].size(0)
-    print(x)
+    for data in load_batch_data(64,train_id_list,"train",1):
+        max_index.append(torch.max(data["input"]))
+        min_index.append(torch.min(data["input"]))
+        x+=1
+        print("\r{}".format(x),end="")
+    for data in load_batch_data(64,valid_id_list,"train",1):
+        max_index.append(torch.max(data["input"]))
+        min_index.append(torch.min(data["input"]))
+        x+=1
+        print("\r{}".format(x),end="")
+    print()
+    print("min:",min(min_index))
+    print("max:",max(max_index))
+    for data in load_batch_data(64,test_id_list,"test",1):
+        max_index.append(torch.max(data["input"]))
+        min_index.append(torch.min(data["input"]))
+        x+=1
+        print("\r{}".format(x),end="")
+    print()
+    print("min:",min(min_index))
+    print("max:",max(max_index))

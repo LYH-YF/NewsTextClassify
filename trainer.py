@@ -113,4 +113,4 @@ def train(epoch,batch_size):
             # 保存模型
             torch.save({'state_dict': best_model.state_dict()}, 'models/best_model.pth.tar')
 if __name__ == "__main__":
-    train(10,64)
+    train(50,128)

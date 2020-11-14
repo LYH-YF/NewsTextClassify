@@ -14,7 +14,7 @@ def test(batch_size):
     nlayers = 2 # 编码器中 nn.TransformerEncoderLayer 层数
     nhead = 2 # 多头注意力机制中“头”的数目
     dropout = 0.2 # dropout
-    max_len=20
+    max_len=1024
     nclass=14
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 先实例化一个模型
@@ -25,13 +25,12 @@ def test(batch_size):
     test_id_list=load_json_data("data/test_id.json")
     results=[]
     step=0
-    for batch_data in load_batch_data(batch_size,test_id_list,"test",7551):
+    for batch_data in load_batch_data(batch_size,test_id_list,"test",7550):
         step+=1
         if batch_data["input"].size(1)>max_len:
             inputs=batch_data["input"][:,:max_len].T.to(device)
         else:
             inputs=batch_data["input"].T.to(device)
-        inputs[inputs>7550]=7550
         output=model(inputs)
         idxs=output[-1].argsort(dim=1,descending=True)[:,:1]
         pred=idxs.T.tolist()
@@ -40,7 +39,7 @@ def test(batch_size):
             print("predict {:5d}/{:5d}" ,format(step,len(test_id_list)//batch_size+1))
     return results
 if __name__ == "__main__":
-    result=test(64)
+    result=test(128)
     result=pd.Series(result)
     result.to_csv("result/submit.csv")
     #x=torch.tensor([1,2,3,4,5,6,7,8,9])
