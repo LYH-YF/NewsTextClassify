@@ -61,7 +61,7 @@ def train(epoch,batch_size):
         total_loss=0.
         model.train() # 训练模式，更新模型参数
         epoch_start_time=time.time()
-        for batch_data in load_batch_data(batch_size,train_id_list,"train",7550):
+        for batch_data in load_batch_data(batch_size,train_id_list,"train",pad_token=7550):
             step+=1
             start_time = time.time() # 用于记录模型的训练时长
             # 获取批次数据
@@ -76,6 +76,7 @@ def train(epoch,batch_size):
             row_idx=torch.arange(inputs.size(1))
             label[row_idx,batch_data["target"]]=1
             #loss = criterion(output.view(-1, nclass), label.to(device))
+            #loss=criterion(output,label.to(device).long())
             loss = criterion(output.transpose(0,1), label.to(device).long())
             # 计算梯度
             loss.backward()
@@ -115,4 +116,4 @@ def train(epoch,batch_size):
             # 保存模型
             torch.save({'state_dict': best_model.state_dict()}, 'models/best_model'+str(epo)+'.pth.tar')
 if __name__ == "__main__":
-    train(50,128)
+    train(50,32)

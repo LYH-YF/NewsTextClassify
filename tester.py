@@ -70,9 +70,9 @@ def test_for_p():
         row_idx=torch.arange(inputs.size(1))
         label[row_idx,batch_data["target"]]=1
         label=label.tolist()
-        for i,prob in probility:
+        for i,prob in enumerate(probility):
             result.append({"predict":prob,"label":label[i]})
-        print("\rsaved:".format(step))
+        print("\rsaved:{}".format(step))
     return result
 
 
