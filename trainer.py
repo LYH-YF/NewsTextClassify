@@ -41,6 +41,7 @@ def train(epoch,batch_size):
     dropout = 0.2 # dropout
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
     #实例化模型
     model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers, nclass,max_len,dropout).to(device)
     criterion = nn.CrossEntropyLoss()
@@ -57,6 +58,7 @@ def train(epoch,batch_size):
     best_model = None
     for epo in range(epoch):
         step=-1
+        total_loss=0.
         model.train() # 训练模式，更新模型参数
         epoch_start_time=time.time()
         for batch_data in load_batch_data(batch_size,train_id_list,"train",7550):
