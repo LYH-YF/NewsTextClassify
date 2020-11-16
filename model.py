@@ -4,6 +4,7 @@ from torch import nn
 import math
 from torch.nn import TransformerEncoder,TransformerEncoderLayer
 import random
+
 class PositionalEncoding(nn.Module):
     '''
     给原始序列添加位置编码
@@ -66,6 +67,41 @@ class TransformerModel(nn.Module):
         output = self.transformer_encoder(src, mask=self.src_mask, src_key_padding_mask=None)
         output = self.decoder(output)
         return output
+
+class TextCNN(nn.Module):
+    def __init__(self,n_token,emb_size,kernel_size,out_channels,n_class,dropout,max_len):
+        """
+        docstring
+        """
+        super(TextCNN,self).__init__()
+        self.dropout_rate = dropout
+        self.num_class = n_class
+        
+        self.embedding = nn.Embedding(num_embeddings=n_token, embedding_dim=emb_size)  # 创建词向量对象
+        self.convs = nn.ModuleList(
+                                    [nn.Sequential(
+                                        nn.Conv1d(in_channels=emb_size, 
+                                                    out_channels=out_channels,
+                                                    kernel_size=h),  # 卷积层
+                                        nn.ReLU(), # 激活函数层
+                                        nn.MaxPool1d(kernel_size=max_len-h+1)# 池化层
+                                                    ) 
+                                        for h in kernel_size
+                                    ])			# 创建多个卷积层，包含了 图中的convolution、activation function和 maxPooling
+        self.fc=nn.Linear(in_features=out_channels*len(kernel_size),out_features=n_class)
+        self.dropout=nn.functional.dropout
+    def forward(self, inputs):
+        """
+        docstring
+        """
+        embed_x = self.embedding(inputs) # 将句子转为词向量矩阵，大小为1*7*5，这里的1是表示只有1条句子
+        embed_x = embed_x.permute(0, 2, 1) # 将矩阵转置
+        out = [conv(embed_x) for conv in self.convs]  #计算每层卷积的结果，这里输出的结果已经经过池化层处理了，对应着图中的6 个univariate vectors
+        out = torch.cat(out, dim=1)  # 对6 个univariate vectors进行拼接
+        out = out.view(-1, out.size(1))  #按照行优先的顺序排成一个n行1列的数据，这部分在图中没有表现出来，其实在程序运行的过程中6 个univariate vectors的大小可能是1*1*1，进行拼接后是1*1*6，我们在这里将其转换为1*6，可见每个值都没有丢失，只是矩阵的形状变了而已
+        out = self.dropout(input=out, p=self.dropout_rate) # 这里也没有在图中的表现出来，这里是随机让一部分的神经元失活，避免过拟合。它只会在train的状态下才会生效。进入train状态可查看nn.Module。train()方法
+        out = self.fc(out)
+        return out
 if __name__ == "__main__":
     id_list=range(200000)
     valid_id=random.sample(id_list,k=10000)
