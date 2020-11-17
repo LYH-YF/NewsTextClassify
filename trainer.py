@@ -1,24 +1,25 @@
 import time
 import math
 import torch
-import os
+from config import get_arg
 from torch import nn
 from model import TransformerModel,TextCNN
 from evaluator import *
 from dataloader import load_batch_data,load_json_data
 
-def train(epoch,batch_size):
-    ntokens = 7551 # 词表大小
-    emsize = 200 # 嵌入层维度
-    nhid = 200 # nn.TransformerEncoder 中前馈神经网络的维度
-    nlayers = 2 # 编码器中 nn.TransformerEncoderLayer 层数
-    nhead = 2 # 多头注意力机制中“头”的数目
-    max_len=20
-    nclass=14
-    dropout = 0.2 # dropout
+def train_trans(args):
+    epoch = args.epoch
+    batch_size = args.batchsize
+    ntokens = args.ntokens # 词表大小
+    emsize = args.embsize  # 嵌入层维度
+    nhid = args.hiddensize # nn.TransformerEncoder 中前馈神经网络的维度
+    nlayers = args.nlayers # 编码器中 nn.TransformerEncoderLayer 层数
+    nhead = args.nhead     # 多头注意力机制中“头”的数目
+    max_len=args.maxlen    # 最大句子长度
+    nclass=args.nclass     #文本类别数量
+    dropout = args.dropout # dropout
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
     #实例化模型
     model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers, nclass,max_len,dropout).to(device)
     criterion = nn.CrossEntropyLoss()
@@ -33,6 +34,7 @@ def train(epoch,batch_size):
     #--------------------------------
     best_val_loss = float("inf")
     best_model = None
+    print("start train:{} | device:{}".format(args.model,device))
     for epo in range(epoch):
         step=-1
         total_loss=0.
@@ -50,12 +52,6 @@ def train(epoch,batch_size):
             output = model(inputs)
             # 计算损失
             label=batch_data["target"]
-            # label=torch.zeros(inputs.size(1),nclass)
-            # row_idx=torch.arange(inputs.size(1))
-            # label[row_idx,batch_data["target"]]=1
-            #loss = criterion(output.view(-1, nclass), label.to(device))
-            #loss=criterion(output,label.to(device).long())
-            #loss = criterion(output.transpose(0,1), label.to(device).long())
             loss=criterion(output[-1],label.to(device))
             # 计算梯度
             loss.backward()
@@ -83,7 +79,7 @@ def train(epoch,batch_size):
         # 打印验证结果
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-            'valid ppl {:8.2f}'.format(epo, (time.time() - epoch_start_time),
+            'valid ppl {:8.2f}'.format(epo+1, (time.time() - epoch_start_time),
                                         val_loss, math.exp(val_loss)))
         print('-' * 89)
         # 调整学习率
@@ -93,20 +89,22 @@ def train(epoch,batch_size):
             best_val_loss = val_loss
             best_model = model
             # 保存模型
-            torch.save({'state_dict': best_model.state_dict()}, 'models/trans_best_model'+str(epo)+'.pth.tar')
+            torch.save({'state_dict': best_model.state_dict()}, 'models/trans_best_model'+str(epo+1)+'.pth.tar')
 
-def train_textcnn(epoch,batch_size):
-    ntokens = 7551 # 词表大小
-    emb_size = 5 # 嵌入层维度
-    max_len=20
-    kernel_size=[4,3,2]
-    out_chanel=2
-    nclass=14
-    dropout = 0.2 # dropout
+def train_textcnn(args):
+    epoch = args.epoch
+    batch_size = args.batchsize
+    ntokens = args.ntokens  # 词表大小
+    emb_size = args.embsize # 嵌入层维度
+    max_len = args.maxlen   #最大句子长度
+    kernel_size = [4,3,2]
+    out_channel = args.outchannel
+    nclass = args.nclass
+    dropout = args.dropout  # dropout
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    textcnn_model=TextCNN(ntokens,emb_size,kernel_size,out_chanel,nclass,dropout,max_len).to(device)
+    textcnn_model=TextCNN(ntokens,emb_size,kernel_size,out_channel,nclass,dropout,max_len).to(device)
     criterion = nn.CrossEntropyLoss()
     # 学习率
     lr = 2.0
@@ -119,6 +117,7 @@ def train_textcnn(epoch,batch_size):
     #--------------------------------
     best_val_loss = float("inf")
     best_model = None
+    print("start train:{} | device:{}".format(args.model,device))
     for epo in range(epoch):
         step=-1
         total_loss=0.
@@ -164,7 +163,7 @@ def train_textcnn(epoch,batch_size):
         # 打印验证结果
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-            'valid ppl {:8.2f}'.format(epo, (time.time() - epoch_start_time),
+            'valid ppl {:8.2f}'.format(epo+1, (time.time() - epoch_start_time),
                                         val_loss, math.exp(val_loss)))
         print('-' * 89)
         # 调整学习率
@@ -174,9 +173,14 @@ def train_textcnn(epoch,batch_size):
             best_val_loss = val_loss
             best_model = textcnn_model
             # 保存模型
-            torch.save({'state_dict': best_model.state_dict()}, 'models/textcnn_best_model'+str(epo)+'.pth.tar')
+            torch.save({'state_dict': best_model.state_dict()}, 'models/textcnn_best_model'+str(epo+1)+'.pth.tar')
 
 
 if __name__ == "__main__":
-    train(50,64)
-    #train_textcnn(10,64)
+    args=get_arg()
+    if args.model=="transformer":
+        train_trans(args)
+    elif args.model=="textcnn":
+        train_textcnn(args)
+    else:
+        pass

@@ -47,7 +47,7 @@ class TransformerModel(nn.Module):
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(ninp, dropout,max_len) # 位置编码
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout) # EncoderLayer
-        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers) # Encoder
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers,) # Encoder
         self.encoder = nn.Embedding(ntoken, ninp) # 嵌入层
         self.ninp = ninp # 模型维度
         
