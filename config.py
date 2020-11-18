@@ -15,5 +15,6 @@ def get_arg():
     parser.add_argument("--hiddensize", type=int, default=200)
     parser.add_argument("--nhead", type=int, default=2)
     parser.add_argument("--outchannel", type=int, default=2)
+    parser.add_argument("--resume", type=bool, default=False)
 
     return parser.parse_args()

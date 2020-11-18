@@ -6,24 +6,19 @@ from torch import nn
 from model import TransformerModel, TextCNN
 from evaluator import *
 from dataloader import DataLoader
+from buildmodel import build_model,load_model_parameter
 
 
 def train_trans(args):
+    dl=DataLoader()
+    ntokens = len(dl.vocab_list) # 词表大小
     epoch = args.epoch
     batch_size = args.batchsize
-    ntokens = args.ntokens  # 词表大小
-    emsize = args.embsize  # 嵌入层维度
-    nhid = args.hiddensize  # nn.TransformerEncoder 中前馈神经网络的维度
-    nlayers = args.nlayers  # 编码器中 nn.TransformerEncoderLayer 层数
-    nhead = args.nhead     # 多头注意力机制中“头”的数目
-    max_len = args.maxlen    # 最大句子长度
-    nclass = args.nclass  # 文本类别数量
-    dropout = args.dropout  # dropout
+    max_len=args.maxlen
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 实例化模型
-    model = TransformerModel(ntokens, emsize, nhead,
-                             nhid, nlayers, nclass, max_len, dropout).to(device)
+    model = build_model(args,ntokens,device)
     criterion = nn.CrossEntropyLoss()
     # 学习率
     lr = 2.0
@@ -32,13 +27,16 @@ def train_trans(args):
     # 动态调整学习率
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
     #train_id_list = load_json_data("data/train_id.json")
-    dl=DataLoader()
     total_loss = 0.
     # --------------------------------
-    best_val_loss = float("inf")
+    if args.resume:
+        model,start_epoch,best_val_loss=load_model_parameter(model,args)
+    else:
+        start_epoch=0
+        best_val_loss = float("inf")
     best_model = None
     print("start train:{} | device:{}".format(args.model, device))
-    for epo in range(epoch):
+    for epo in range(start_epoch,epoch):
         step = -1
         total_loss = 0.
         model.train()  # 训练模式，更新模型参数
@@ -102,18 +100,13 @@ def train_trans(args):
 def train_textcnn(args):
     epoch = args.epoch
     batch_size = args.batchsize
-    ntokens = args.ntokens  # 词表大小
-    emb_size = args.embsize  # 嵌入层维度
     max_len = args.maxlen  # 最大句子长度
-    kernel_size = [4, 3, 2]
-    out_channel = args.outchannel
-    nclass = args.nclass
-    dropout = args.dropout  # dropout
+    dl=DataLoader()
+    ntokens=len(dl.vocab_list)
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    textcnn_model = TextCNN(ntokens, emb_size, kernel_size,
-                            out_channel, nclass, dropout, max_len).to(device)
+    textcnn_model = build_model(args,ntokens)
     criterion = nn.CrossEntropyLoss()
     # 学习率
     lr = args.lr
@@ -121,13 +114,16 @@ def train_textcnn(args):
     #optimizer = torch.optim.SGD(textcnn_model.parameters(), lr=lr)
     optimizer = torch.optim.Adam(textcnn_model.parameters(), lr=lr)
     #train_id_list = load_json_data("data/train_id.json")
-    dl=DataLoader()
     total_loss = 0.
     # --------------------------------
-    best_val_loss = float("inf")
+    if args.resume:
+        textcnn_model,start_epoch,best_val_loss=load_model_parameter(textcnn_model,args)
+    else:
+        start_epoch=0
+        best_val_loss = float("inf")
     best_model = None
     print("start train:{} | device:{}".format(args.model, device))
-    for epo in range(epoch):
+    for epo in range(start_epoch,epoch):
         step = -1
         total_loss = 0.
         textcnn_model.train()  # 训练模式，更新模型参数
@@ -194,5 +190,6 @@ if __name__ == "__main__":
     elif args.model == "textcnn":
         train_textcnn(args)
     else:
+        raise Exception("no model named {}".format(args.model))
         print("no model named {}".format(args.model))
         pass

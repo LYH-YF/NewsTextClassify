@@ -2,22 +2,18 @@ from config import get_arg
 import pandas as pd
 import torch
 import os
-from model import TransformerModel,TextCNN
 from dataloader import DataLoader
+from buildmodel import *
 
 def test_trans(args):
+    dl=DataLoader()
     batch_size = args.batchsize
-    ntokens = args.ntokens # 词表大小
-    emsize = args.embsize  # 嵌入层维度
-    nhid = args.hiddensize # nn.TransformerEncoder 中前馈神经网络的维度
-    nlayers = args.nlayers # 编码器中 nn.TransformerEncoderLayer 层数
-    nhead = args.nhead     # 多头注意力机制中“头”的数目
+    ntokens = len(dl.vocab_list) # 词表大小
     max_len=args.maxlen    # 最大句子长度
-    nclass=args.nclass     #文本类别数量
-    dropout = args.dropout # dropout
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 先实例化一个模型
-    model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers,nclass, max_len,dropout).to(device)
+    #model = TransformerModel(ntokens, emsize, nhead, nhid, nlayers,nclass, max_len,dropout).to(device)
+    model=build_model(args,ntokens,device)
     # 模型加载训练好的参数
     checkpath=None
     listdirs=os.listdir("models/")
@@ -29,8 +25,6 @@ def test_trans(args):
         return None
     checkpoint = torch.load(checkpath)
     model.load_state_dict(checkpoint['state_dict'])
-    #test_id_list=load_json_data("data/test_id.json")
-    dl=DataLoader()
     results=[]
     step=0
     print("start test:{} | device:{}".format(args.model,device))
@@ -49,18 +43,15 @@ def test_trans(args):
             print("predict {:5d}/{:5d}" .format(step,len(dl.test_id_list)//batch_size+1))
     return results
 def test_textcnn(args):
+    dl=DataLoader()
     batch_size = args.batchsize
-    ntokens = args.ntokens  # 词表大小
-    emb_size = args.embsize # 嵌入层维度
+    ntokens = len(dl.vocab_list)  # 词表大小
     max_len = args.maxlen   #最大句子长度
-    kernel_size = [4,3,2]
-    out_channel = args.outchannel
-    nclass = args.nclass
-    dropout = args.dropout  # dropout
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    textcnn_model=TextCNN(ntokens,emb_size,kernel_size,out_channel,nclass,dropout,max_len).to(device)
+    #textcnn_model=TextCNN(ntokens,emb_size,kernel_size,out_channel,nclass,dropout,max_len).to(device)
+    textcnn_model=build_model(args,ntokens,device)
     # 模型加载训练好的参数
     checkpath=None
     listdirs=os.listdir("models/")
@@ -73,7 +64,6 @@ def test_textcnn(args):
     checkpoint = torch.load(checkpath)
     textcnn_model.load_state_dict(checkpoint['state_dict'])
     #test_id_list=load_json_data("data/test_id.json")
-    dl=DataLoader()
     results=[]
     step=0
     print("start test:{} | device:{}".format(args.model,device))

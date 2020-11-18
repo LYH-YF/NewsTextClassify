@@ -1,5 +1,6 @@
 data/*.csv
 data/*.zip
-data/processed/*.json
+data/processed/trainset/*.json
+data/processed/testset/*json
 .vscode/*.json
 __pycache__/*.pyc
