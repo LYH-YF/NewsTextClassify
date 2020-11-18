@@ -8,7 +8,7 @@
     * 3.1 train `transformer` model:
         run `python trainer.py --model transformer --epoch 40 --batchsize 128`
     * 3.2 train `textcnn` model:
-        run `python trainer.py --model textcnn --epoch 40 --batchsize 128 `
+        run `python trainer.py --model textcnn --epoch 40 --batchsize 128 --embsize 5 `
 
 4. ### test model:
     4.1 test transformer model:

@@ -4,8 +4,8 @@ import torch
 import os
 from model import TransformerModel,TextCNN
 from dataloader import DataLoader
-
-def test_trans(args):
+from sklearn.metrics import f1_score
+def get_pred_trans(args,type):
     batch_size = args.batchsize
     ntokens = args.ntokens # 词表大小
     emsize = args.embsize  # 嵌入层维度
@@ -29,13 +29,13 @@ def test_trans(args):
         return None
     checkpoint = torch.load(checkpath)
     model.load_state_dict(checkpoint['state_dict'])
-    #test_id_list=load_json_data("data/test_id.json")
     dl=DataLoader()
     results=[]
+    label=[]
     step=0
     print("start test:{} | device:{}".format(args.model,device))
     model.eval()
-    for batch_data in dl.load_batch_data(batch_size,"test"):
+    for batch_data in dl.load_batch_data(batch_size,type):
         step+=1
         if batch_data["input"].size(1)>max_len:
             inputs=batch_data["input"][:,:max_len].T.to(device)
@@ -45,10 +45,15 @@ def test_trans(args):
         idxs=output[-1].argsort(dim=1,descending=True)[:,:1]
         pred=idxs.T.tolist()
         results+=pred[0]
+        label+=batch_data["target"].tolist()
         if step%100==0 and step>0:
-            print("predict {:5d}/{:5d}" .format(step,len(dl.test_id_list)//batch_size+1))
-    return results
-def test_textcnn(args):
+            if type=="train":
+                id_list=dl.train_id_list
+            else:
+                id_list=dl.valid_id_list
+            print("predict {:5d}/{:5d}" .format(step,len(id_list)//batch_size+1))
+    return results,label
+def get_pred_textcnn(args,type):
     batch_size = args.batchsize
     ntokens = args.ntokens  # 词表大小
     emb_size = args.embsize # 嵌入层维度
@@ -72,12 +77,12 @@ def test_textcnn(args):
         return None
     checkpoint = torch.load(checkpath)
     textcnn_model.load_state_dict(checkpoint['state_dict'])
-    #test_id_list=load_json_data("data/test_id.json")
     dl=DataLoader()
     results=[]
+    label=[]
     step=0
     print("start test:{} | device:{}".format(args.model,device))
-    for batch_data in dl.load_batch_data(batch_size,"test"):
+    for batch_data in dl.load_batch_data(batch_size,type):
         step+=1
         if batch_data["input"].size(1)>max_len:
             inputs=batch_data["input"][:,:max_len].to(device)
@@ -87,26 +92,33 @@ def test_textcnn(args):
         idxs=output.argsort(dim=1,descending=True)[:,:1]
         pred=idxs.T.tolist()
         results+=pred[0]
+        label+=batch_data["target"].tolist()
         if step%100==0 and step>0:
-            print("predict {:5d}/{:5d}" .format(step,len(dl.test_id_list)//batch_size+1))
-    return results
-
+            if type=="train":
+                id_list=dl.train_id_list
+            else:
+                id_list=dl.valid_id_list
+            print("predict {:5d}/{:5d}" .format(step,len(id_list)//batch_size+1))
+    return results,label
 if __name__ == "__main__":
     args=get_arg()
-    result=None
     if args.model=="transformer":
-        result=test_trans(args)
+        print("train set:")
+        t_predict,t_label=get_pred_trans(args,"train")
+        print("valid set:")
+        v_predict,v_label=get_pred_trans(args,"valid")
     elif args.model=="textcnn":
-        result=test_textcnn(args)
+        print("train set:")
+        t_predict,t_label=get_pred_textcnn(args,"train")
+        print("valid set:")
+        v_predict,v_label=get_pred_textcnn(args,"valid")
     else:
-        print("no model named {}".format(args.model))
+        t_predict=None
+        t_label=None
+        v_predict=None
+        v_label=None
         pass
-    if result !=None:
-        result=pd.DataFrame(result,columns=["label"])
-        result.to_csv("submit_trans.csv",index=None)
-    # result=test_for_p()
-    # with open("result/r.json",mode="w+") as f:
-    #     result=json.dumps(result,indent=4)
-    #     f.write(result)
-    # f.close()
-    
+    if t_predict !=None:
+        print("train set scores:{}".format(f1_score(t_label,t_predict,average='macro')))
+    if v_predict !=None:
+        print("valid set scores:{}".format(f1_score(v_label,v_predict,average='macro')))

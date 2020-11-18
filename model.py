@@ -1,32 +1,13 @@
-from pandas.io import json
+'''
+Transformer
+TextCNN
+Bert
+'''
 import torch
 from torch import nn
 import math
 from torch.nn import TransformerEncoder,TransformerEncoderLayer
-import random
-
-class PositionalEncoding(nn.Module):
-    '''
-    给原始序列添加位置编码
-    '''
-    def __init__(self, d_model, dropout=0.1, max_len=1024):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-        
-        # 首先初始化为0
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        # sine 和 cosine 来生成位置信息
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        # 词经过嵌入层后，再加上位置信息
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
+from sublayer import *
 
 def subsequent_mask(sz):
     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
@@ -102,21 +83,58 @@ class TextCNN(nn.Module):
         out = self.dropout(input=out, p=self.dropout_rate) # 这里也没有在图中的表现出来，这里是随机让一部分的神经元失活，避免过拟合。它只会在train的状态下才会生效。进入train状态可查看nn.Module。train()方法
         out = self.fc(out)
         return out
+
+# build model
+class Bert(nn.Module):
+    def __init__(self, vocab,sent_hidden_size):
+        super(Bert, self).__init__()
+        self.sent_rep_size = 256
+        self.doc_rep_size = sent_hidden_size * 2
+        self.all_parameters = {}
+        parameters = []
+        self.word_encoder = WordBertEncoder()
+        bert_parameters = self.word_encoder.get_bert_parameters()
+
+        self.sent_encoder = SentEncoder(self.sent_rep_size)
+        self.sent_attention = Attention(self.doc_rep_size)
+        parameters.extend(list(filter(lambda p: p.requires_grad, self.sent_encoder.parameters())))
+        parameters.extend(list(filter(lambda p: p.requires_grad, self.sent_attention.parameters())))
+
+        self.out = nn.Linear(self.doc_rep_size, vocab.label_size, bias=True)
+        parameters.extend(list(filter(lambda p: p.requires_grad, self.out.parameters())))
+
+        if len(parameters) > 0:
+            self.all_parameters["basic_parameters"] = parameters
+        self.all_parameters["bert_parameters"] = bert_parameters
+
+        logging.info('Build model with bert word encoder, lstm sent encoder.')
+
+        para_num = sum([np.prod(list(p.size())) for p in self.parameters()])
+        logging.info('Model param num: %.2f M.' % (para_num / 1e6))
+
+    def forward(self, batch_inputs):
+        # batch_inputs(batch_inputs1, batch_inputs2): b x doc_len x sent_len
+        # batch_masks : b x doc_len x sent_len
+        batch_inputs1, batch_inputs2, batch_masks = batch_inputs
+        batch_size, max_doc_len, max_sent_len = batch_inputs1.shape[0], batch_inputs1.shape[1], batch_inputs1.shape[2]
+        batch_inputs1 = batch_inputs1.view(batch_size * max_doc_len, max_sent_len)  # sen_num x sent_len
+        batch_inputs2 = batch_inputs2.view(batch_size * max_doc_len, max_sent_len)  # sen_num x sent_len
+        batch_masks = batch_masks.view(batch_size * max_doc_len, max_sent_len)  # sen_num x sent_len
+
+        sent_reps = self.word_encoder(batch_inputs1, batch_inputs2)  # sen_num x sent_rep_size
+
+        sent_reps = sent_reps.view(batch_size, max_doc_len, self.sent_rep_size)  # b x doc_len x sent_rep_size
+        batch_masks = batch_masks.view(batch_size, max_doc_len, max_sent_len)  # b x doc_len x max_sent_len
+        sent_masks = batch_masks.bool().any(2).float()  # b x doc_len
+
+        sent_hiddens = self.sent_encoder(sent_reps, sent_masks)  # b x doc_len x doc_rep_size
+        doc_reps, atten_scores = self.sent_attention(sent_hiddens, sent_masks)  # b x doc_rep_size
+
+        batch_outputs = self.out(doc_reps)  # b x num_labels
+
+        return batch_outputs
+    
 if __name__ == "__main__":
-    id_list=range(200000)
-    valid_id=random.sample(id_list,k=10000)
-    for i in valid_id:
-        id_list.remove(i)
-    print(len(id_list))
-    import json
-    with open("data/train_id.json",mode="a+") as f:
-        id_list=json.dumps(id_list,indent=4)
-        f.write(id_list)
-    f.close()
-    with open("data/valid_id.sjon") as f:
-        valid_id=json.dumps(valid_id)
-        f.write(valid_id)
-    f.close()
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ntokens = 7550 # 词表大小
