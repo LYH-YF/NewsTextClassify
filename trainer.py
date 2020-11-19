@@ -2,8 +2,8 @@ import time
 import math
 import torch
 from config import get_arg
-from torch import nn
-from model import TransformerModel, TextCNN
+from torch import nn, tensor
+from model import Bert, TransformerModel, TextCNN
 from evaluator import *
 from dataloader import DataLoader
 from buildmodel import build_model,load_model_parameter
@@ -78,7 +78,7 @@ def train_trans(args):
                 total_loss = 0
                 start_time = time.time()
         # 验证过程
-        val_loss = evaluate_transformer(model, batch_size)
+        val_loss = evaluate_transformer(model,args)
         # 打印验证结果
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
@@ -106,13 +106,12 @@ def train_textcnn(args):
     # 获取当前设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    textcnn_model = build_model(args,ntokens)
+    textcnn_model = build_model(args,ntokens,device)
     criterion = nn.CrossEntropyLoss()
     # 学习率
     lr = args.lr
     # 随机梯度下降
     #optimizer = torch.optim.SGD(textcnn_model.parameters(), lr=lr)
-    optimizer = torch.optim.Adam(textcnn_model.parameters(), lr=lr)
     #train_id_list = load_json_data("data/train_id.json")
     total_loss = 0.
     # --------------------------------
@@ -121,6 +120,7 @@ def train_textcnn(args):
     else:
         start_epoch=0
         best_val_loss = float("inf")
+    optimizer = torch.optim.Adam(textcnn_model.parameters(), lr=lr)
     best_model = None
     print("start train:{} | device:{}".format(args.model, device))
     for epo in range(start_epoch,epoch):
@@ -165,7 +165,7 @@ def train_textcnn(args):
                 total_loss = 0
                 start_time = time.time()
         # 验证过程
-        val_loss = evaluate_textcnn(textcnn_model, batch_size)
+        val_loss = evaluate_textcnn(textcnn_model, args)
         # 打印验证结果
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
@@ -182,13 +182,47 @@ def train_textcnn(args):
                        'models/textcnn_best_model.pth.tar')
             print("saved model at epoch {}".format(epo+1))
 
-
+def train_bert(args):
+    dl=DataLoader()
+    ntokens = len(dl.vocab_list) # 词表大小
+    epoch = args.epoch
+    batch_size = args.batchsize
+    max_len=args.maxlen
+    sent_hidden_size=args.hiddensize
+    sent_num_layers=args.nlayers
+    bert_path = 'models/bert/bert-mini/'
+    # 获取当前设备
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    bert_model=Bert(sent_hidden_size=sent_hidden_size,
+                    sent_num_layers=sent_num_layers,
+                    nclass=14,
+                    bert_path=bert_path,
+                    dropout=0.15).to(device)
+    start_epoch=0
+    for epo in range(start_epoch,epoch):
+        step = -1
+        total_loss = 0.
+        #bert_model.train()  # 训练模式，更新模型参数
+        epoch_start_time = time.time()
+        for batch_data in dl.load_batch_data(batch_size, "train"):
+            if batch_data["input"].size(1) > max_len:
+                inputs = batch_data["input"][:, :max_len].to(device)
+            else:
+                inputs = batch_data["input"].to(device)
+            inputs=inputs.unsqueeze(1)
+            segment_inputs=torch.zeros(inputs.size()).to(device)
+            mask_inputs=torch.ones(inputs.size()).to(device).bool() & inputs.bool()
+            mask_inputs=mask_inputs.float()
+            output=bert_model((inputs,segment_inputs,mask_inputs))
+            print(1)
 if __name__ == "__main__":
     args = get_arg()
     if args.model == "transformer":
         train_trans(args)
     elif args.model == "textcnn":
         train_textcnn(args)
+    elif args.model == "bert":
+        train_bert(args)
     else:
         raise Exception("no model named {}".format(args.model))
         print("no model named {}".format(args.model))

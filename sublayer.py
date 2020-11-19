@@ -5,9 +5,8 @@ import logging
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch_transformers import BertModel
+from pytorch_transformers import BertModel,BasicTokenizer
 #from transformers import BertModel
-
 class PositionalEncoding(nn.Module):
     '''
     给原始序列添加位置编码
@@ -66,18 +65,18 @@ class Attention(nn.Module):
 
         return batch_outputs, attn_scores
 
-
+BasicTokenizer()
 # build word encoder
 class WordBertEncoder(nn.Module):
     def __init__(self,bert_path,dropout):
         '''
-        bert_path = '../emb/bert-mini/'
+        bert_path = 'models/bert/bert-mini/'
         dropout = 0.15
         '''
         super(WordBertEncoder, self).__init__()
         self.dropout = nn.Dropout(dropout)
 
-        self.tokenizer = WhitespaceTokenizer()
+        self.tokenizer = WhitespaceTokenizer(bert_path)
         self.bert = BertModel.from_pretrained(bert_path)
 
         self.pooled = False
@@ -179,3 +178,10 @@ class SentEncoder(nn.Module):
             sent_hiddens = self.dropout(sent_hiddens)
 
         return sent_hiddens
+if __name__ == "__main__":
+    f=open("models/bert/bert-mini/vocab.txt",mode="r")
+    lines=f.read()
+    vocab=lines.split("\n")[5:]
+    vocab=[int(v) for v in vocab if v!=""]
+    vocab.sort()
+    print(1)

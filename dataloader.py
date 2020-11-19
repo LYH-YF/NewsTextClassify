@@ -120,6 +120,7 @@ class DataLoader(object):
         for i in range(len(batch_id_list)):
             batch_text_input[i] = batch_text_input[i]+[self.vocab_dict["PAD_token"]]*(max_len-batch_text_inputlen[i])
         return batch_text_input, batch_target
+    
 if __name__ == "__main__":
     dl=DataLoader()
     dl.load_batch_data(64,"aa")

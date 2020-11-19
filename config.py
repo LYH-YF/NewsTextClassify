@@ -3,7 +3,7 @@ import argparse
 def get_arg():
     parser = argparse.ArgumentParser()
     parser.add_argument("--epoch", type=int, default=50)
-    parser.add_argument("--model", type=str, default="transformer")
+    parser.add_argument("--model", type=str, default="bert")
     parser.add_argument("--batchsize", type=int, default=128)
     parser.add_argument("--lr", type=float, default=2.0)
     parser.add_argument("--dropout", type=float, default=0.2)
